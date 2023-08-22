@@ -55,7 +55,7 @@ void loop() {
             break;
         case 'r':
             if (recording) {
-                ssd.setDisplay(40 + (millis()/500)%6);
+                ssd.setDisplay(40 + (millis()/250)%6);
             } else {
                 ssd.setDisplay(27);
             }

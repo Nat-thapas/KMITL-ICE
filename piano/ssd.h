@@ -59,7 +59,7 @@ class SsdDriver {
             pinMode(pins[i], OUTPUT);
         }
         this->displaying = -1;
-        this->dpState = HIGH;
+        this->dpState = LOW;
         update();
     }
 
