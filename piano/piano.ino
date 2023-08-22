@@ -151,10 +151,11 @@ void loop() {
             ssd.update();
             pauseRefreshUntil = millis() + 1000;
         }
+        int loadingSegment = 0;
         for (int i=0; i<recordIdx; i++) {
-            ssd.setDisplay(40 + (millis()/250)%6);
-            ssd.update();
             if (recordedNotes[i] > 0) {
+                ssd.setDisplay(40 + loadingSegment++%6);
+                ssd.update();
                 tone(SPEAKER_PIN, notes[recordedNotes[i]-1]);
             } else {
                 noTone(SPEAKER_PIN);
