@@ -27,11 +27,10 @@ void setup() {
     pinMode(MODE_PIN, INPUT_PULLUP);
     pinMode(ACTION_PIN, INPUT_PULLUP);
     pinMode(SPEAKER_PIN, OUTPUT);
-    // Serial.begin(9600);
 }
 
-int recordedNotes[128] = {};
-long recordedLength[128] = {};
+int recordedNotes[200] = {};
+long recordedLength[200] = {};
 
 int noteSpace = 3;
 
@@ -46,45 +45,55 @@ int modeIdx = 0;
 char modes[4] = "nrpc";
 char mode = 'n';
 
+bool lastModePinState = HIGH;
+bool lastActionPinState = HIGH;
+
+long pauseRefreshUntil = 0;
+
 void loop() {
+    // Read buttons
+    bool modePinState = digitalRead(MODE_PIN);
+    bool actionPinState = digitalRead(ACTION_PIN);
+
     // Drive ssd
-    switch (mode) {
-        case 'n':
-            ssd.setDisplay(23);
-            ssd.update();
-            break;
-        case 'r':
-            if (recording) {
-                ssd.setDisplay(40 + (millis()/250)%6);
-            } else {
-                ssd.setDisplay(27);
-            }
-            ssd.update();
-            break;
-        case 'p':
-            ssd.setDisplay(25);
-            ssd.update();
-            break;
-        case 'c':
-            ssd.setDisplay(12);
-            ssd.update();
-            break;
-        default:
-            mode = 'n';
-            ssd.setDisplay(23);
-            ssd.update();
-            break;
+    if (millis() > pauseRefreshUntil) {
+        switch (mode) {
+            case 'n':
+                ssd.setDisplay(23);
+                ssd.update();
+                break;
+            case 'r':
+                if (recording) {
+                    ssd.setDisplay(40 + (millis()/250)%6);
+                } else {
+                    ssd.setDisplay(27);
+                }
+                ssd.update();
+                break;
+            case 'p':
+                ssd.setDisplay(25);
+                ssd.update();
+                break;
+            case 'c':
+                ssd.setDisplay(12);
+                ssd.update();
+                break;
+            default:
+                mode = 'n';
+                ssd.setDisplay(23);
+                ssd.update();
+                break;
+        }
     }
 
     // Select mode
-    if (!digitalRead(MODE_PIN)) {
+    if (modePinState < lastModePinState) {
         if (recording) {
             recording = false;
         }
         modeIdx++;
         modeIdx %= 4;
         mode = modes[modeIdx];
-        delay(1000);
     }
 
     // Normal playing
@@ -94,6 +103,7 @@ void loop() {
             currentNote = 7*noteSpace + i+1;
             tone(SPEAKER_PIN, notes[7*noteSpace + i]);
             playing = true;
+            break;
         }
     }
     if (!playing) {
@@ -102,31 +112,28 @@ void loop() {
     }
 
     // Config
-    if (mode == 'c' && !digitalRead(ACTION_PIN)) {
+    if (mode == 'c' && actionPinState < lastActionPinState) {
         noteSpace++;
         noteSpace %= 7;
-        ssd.setDisplay(noteSpace);
+        ssd.setDisplay(noteSpace + 1);
         ssd.update();
-        delay(1000);
+        pauseRefreshUntil = millis() + 1000;
     }
 
     // Recording
-    if (mode == 'r' && !digitalRead(ACTION_PIN)) {
+    if (mode == 'r' && actionPinState < lastActionPinState) {
         if (recording) {
             recording = false;
         } else {
             recording = true;
             recordIdx = 0;
-            for (int i=0; i<128; i++) {
+            for (int i=0; i<200; i++) {
                 recordedNotes[i] = 0;
                 recordedLength[i] = 0;
             }
         }
-        delay(1000);
     }
     if (currentNote != lastNote && recording) {
-        // Serial.println("Different detected!");
-        // Serial.println(recordIdx);
         int elapsed = millis() - recordMillis;
         if (recordIdx != 0 || recordedNotes[0] != 0) {
             recordedLength[recordIdx] = elapsed;
@@ -138,102 +145,25 @@ void loop() {
     lastNote = currentNote;
 
     // Playback
-    if (mode == 'p' && !digitalRead(ACTION_PIN)) {
-        // Serial.println("Begining playback");
+    if (mode == 'p' && actionPinState < lastActionPinState) {
+        if (recordIdx == 0) {
+            ssd.setDisplay(37);
+            ssd.update();
+            pauseRefreshUntil = millis() + 1000;
+        }
         for (int i=0; i<recordIdx; i++) {
+            ssd.setDisplay(40 + (millis()/250)%6);
+            ssd.update();
             if (recordedNotes[i] > 0) {
-                // Serial.print("Playing: ");
-                // Serial.println(notes[recordedNote[i]-1]);
                 tone(SPEAKER_PIN, notes[recordedNotes[i]-1]);
             } else {
                 noTone(SPEAKER_PIN);
             }
-            // Serial.print("Delaying: ");
-            // Serial.println(recordedTime[i]);
             delay(recordedLength[i]);
         }
         noTone(SPEAKER_PIN);
     }
+    lastModePinState = modePinState;
+    lastActionPinState = actionPinState;
     delay(50);
 }
-
-
-/*
-#define NOTE_C4  262
-#define NOTE_D4  294
-#define NOTE_E4  330
-#define NOTE_F4  349
-#define NOTE_G4  392
-#define NOTE_A4  440
-#define NOTE_B4  494
-
-#define SPEAKER_PIN 5
-#define DEBUG_PIN 13
-#define RECORD_PIN 4
-                       //C  D  E  F  G   A   B
-const int notePins[7] = {6, 7, 8, 9, 10, 11, 12};
-const int notes[7] = {NOTE_C4, NOTE_D4, NOTE_E4, NOTE_F4, NOTE_G4, NOTE_A4, NOTE_B4};
-
-void setup() {
-    for (int i=0; i<7; i++) {
-        pinMode(notePins[i], INPUT_PULLUP);
-    }
-    pinMode(DEBUG_PIN, INPUT_PULLUP);
-    pinMode(SPEAKER_PIN, OUTPUT);
-    Serial.begin(9600);
-}
-
-int recordedNote[128] = {};
-long recordedTime[128] = {};
-
-int currentNote = 0;
-int lastNote = 0;
-
-int recordIdx = 0;
-bool recording = true;
-long recordMillis = 0;
-
-void loop() {
-    bool playing = false;
-    for (int i=0; i<7; i++) {
-        if (!digitalRead(notePins[i])) {
-            currentNote = i+1;
-            tone(SPEAKER_PIN, notes[i]);
-            playing = true;
-        }
-    }
-    if (!playing) {
-        currentNote = 0;
-        noTone(SPEAKER_PIN);
-    }
-    if (currentNote != lastNote && recording) {
-        Serial.println("Different detected!");
-        Serial.println(recordIdx);
-        int elapsed = millis() - recordMillis;
-        if (recordIdx != 0 || recordedNote[0] != 0) {
-            recordedTime[recordIdx] = elapsed;
-            recordIdx++;
-        }
-        recordMillis = millis();
-        recordedNote[recordIdx] = currentNote;
-    }
-    lastNote = currentNote;
-    if (!digitalRead(DEBUG_PIN)) {
-        Serial.println("Begining debug");
-        for (int i=0; i<recordIdx; i++) {
-            if (recordedNote[i] > 0) {
-                Serial.print("Playing: ");
-                Serial.println(notes[recordedNote[i]-1]);
-                tone(SPEAKER_PIN, notes[recordedNote[i]-1]);
-            } else {
-                noTone(SPEAKER_PIN);
-            }
-            Serial.print("Delaying: ");
-            Serial.println(recordedTime[i]);
-            delay(recordedTime[i]);
-        }
-        noTone(SPEAKER_PIN);
-      delay(1000);
-    }
-}
-*/
