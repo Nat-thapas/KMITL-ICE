@@ -138,6 +138,9 @@ void loop() {
         if (recordIdx != 0 || recordedNotes[0] != 0) {
             recordedLength[recordIdx] = elapsed;
             recordIdx++;
+            if (recordIdx >= 199) {
+                recording = false;
+            }
         }
         recordMillis = millis();
         recordedNotes[recordIdx] = currentNote;
