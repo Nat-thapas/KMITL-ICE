@@ -10,6 +10,13 @@
 #define LEFT 3
 #define UP 4
 
+int joyStickXmin = 0;
+int joyStickXmid = 503;
+int joyStickXmax = 1005;
+int joyStickYmin = 0;
+int joyStickYmid = 505;
+int joyStickYmax = 1002;
+
 // CS_PIN 5 (Must be PWN capable)
 // DIN_PIN 11 (Does not seem to be configurable)
 // CLK_PIN 13 (Does not seem to be configurable)
@@ -26,6 +33,58 @@
 MD_MAX72XX myDisplay = MD_MAX72XX(HARDWARE_TYPE, CS_PIN, MAX_DEVICES);
 
 int buttons[4] = {2, 3, 4, 5};
+int joyStickX = A0;
+int joyStickY = A1;
+
+int getDir(float xval, float yval) {
+    // Serial.print(xval);
+    // Serial.print(" ");
+    // Serial.println(yval);
+    if (abs(xval) <= 0.25f && abs(yval) <= 0.25f) {
+        return 0;
+    }
+    if (abs(xval) > abs(yval)) {
+        if (xval > 0) {
+            return RIGHT;
+        } else {
+            return LEFT;
+        }
+    } else {
+        if (yval > 0) {
+            return UP;
+        } else {
+            return DOWN;
+        }
+    }
+}
+
+float getNormalizedInput(int analogInput, char axis) {
+    switch (axis) {
+        case 'x':
+            if (analogInput == joyStickXmid) {
+                return 0.f;
+            } else if (analogInput > joyStickXmid) {
+                return (float)(analogInput - joyStickXmid) / (float)(joyStickXmax - joyStickXmid);
+            } else {
+                // Serial.print(analogInput - joyStickXmin);
+                // Serial.print(" ");
+                // Serial.println(joyStickXmid - joyStickXmin);
+                return ((float)(analogInput - joyStickXmin) / (float)(joyStickXmid - joyStickXmin)) - 1.f;
+            }
+            break;
+        case 'y':
+            if (analogInput == joyStickYmid) {
+                return 0.f;
+            } else if (analogInput > joyStickYmid) {
+                return (float)(analogInput - joyStickYmid) / (float)(joyStickYmax - joyStickYmid);
+            } else {
+                return ((float)(analogInput - joyStickYmin) / (float)(joyStickYmid - joyStickYmin)) - 1.f;
+            }
+            break;
+        default:
+            return 0.f;
+    }
+}
 
 bool findInArray(int a, int b, int *arrA, int *arrB, int size) {
     for (int i=0; i<size; i++) {
@@ -41,6 +100,8 @@ void setup() {
     for (int i=0; i<4; i++) {
         pinMode(buttons[i], INPUT_PULLUP);
     }
+    pinMode(joyStickX, INPUT);
+    pinMode(joyStickY, INPUT);
     pinMode(7, INPUT);
     myDisplay.begin();
     myDisplay.clear();
@@ -63,8 +124,6 @@ int loopCount = 0;
 int snakeX[64] = {};
 int snakeY[64] = {};
 
-int gameArrar[64] = {};
-
 bool buttonStates[4] = {true, true, true, true};
 bool lastButtonStates[4] = {true, true, true, true};
 
@@ -72,6 +131,8 @@ void loop() {
     for (int i=0; i<4; i++) {
         buttonStates[i] = digitalRead(buttons[i]);
     }
+    float joyStickXval = getNormalizedInput(analogRead(joyStickX), 'x');
+    float joyStickYval = getNormalizedInput(analogRead(joyStickY), 'y');
     for (int i=0; i<4; i++) {
         if (buttonStates[i] < lastButtonStates[i]) {
             switch(i) {
@@ -89,6 +150,10 @@ void loop() {
                     break;
             }
         }
+    }
+    int newJoyStickDir = getDir(joyStickXval, joyStickYval);
+    if (newJoyStickDir > 0) {
+        dir = newJoyStickDir;
     }
     if (loopCount % 6 == 0) {
         switch(dir) {
