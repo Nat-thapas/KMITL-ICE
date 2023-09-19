@@ -17,7 +17,7 @@ int joyStickYmin = 0;
 int joyStickYmid = 505;
 int joyStickYmax = 1002;
 
-// CS_PIN 5 (Must be PWN capable)
+// CS_PIN 10 (Must be PWN capable)
 // DIN_PIN 11 (Does not seem to be configurable)
 // CLK_PIN 13 (Does not seem to be configurable)
 
@@ -37,9 +37,6 @@ int joyStickX = A0;
 int joyStickY = A1;
 
 int getDir(float xval, float yval) {
-    // Serial.print(xval);
-    // Serial.print(" ");
-    // Serial.println(yval);
     if (abs(xval) <= 0.25f && abs(yval) <= 0.25f) {
         return 0;
     }
@@ -66,9 +63,6 @@ float getNormalizedInput(int analogInput, char axis) {
             } else if (analogInput > joyStickXmid) {
                 return (float)(analogInput - joyStickXmid) / (float)(joyStickXmax - joyStickXmid);
             } else {
-                // Serial.print(analogInput - joyStickXmin);
-                // Serial.print(" ");
-                // Serial.println(joyStickXmid - joyStickXmin);
                 return ((float)(analogInput - joyStickXmin) / (float)(joyStickXmid - joyStickXmin)) - 1.f;
             }
             break;
@@ -174,14 +168,6 @@ void loop() {
                 y = mod(y, 8);
                 break;
         }
-        // Serial.println("xxxxxx");
-        // for (int i=0; i<size; i++) {
-        //     Serial.print(snakeX[i]);
-        //     Serial.println(snakeY[i]);
-        // }
-        // Serial.println("-------");
-        // Serial.print(x);
-        // Serial.println(y);
         if (findInArray(x, y, snakeX, snakeY, size)) {
             pinMode(7, OUTPUT);
             digitalWrite(7, LOW);
