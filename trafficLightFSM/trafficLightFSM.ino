@@ -2,7 +2,7 @@
 #define NORTH_BUTTON A1
 #define EAST_BUTTON A0
 
-const int ledsPin[10] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11}
+const int ledsPin[10] = {2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
 struct state {
     unsigned int outputPattern;
@@ -33,6 +33,16 @@ void setup() {
     }
 }
 
-void loop() {
+int currentState = 4;
 
+void loop() {
+    for (int i = 0; i < 10; i++) {
+        digitalWrite(2+i, !bitRead(machines[currentState].outputPattern, 9-i));
+    }
+    delay(machines[currentState].delayTime);
+    bool pedestrianButtonState = !digitalRead(PEDESTRIAN_BUTTON);
+    bool northButtonState = !digitalRead(NORTH_BUTTON);
+    bool eastButtonState = !digitalRead(EAST_BUTTON);
+    int nextStateIndex = (pedestrianButtonState << 2) + (northButtonState << 1) + eastButtonState;
+    currentState = machines[currentState].nextStates[nextStateIndex];
 }
