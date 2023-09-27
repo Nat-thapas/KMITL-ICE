@@ -1,33 +1,36 @@
+#ifndef MOTORDRIVER_HPP
+#define MOTORDRIVER_HPP
+
 class MotorDriver {
-    int pins[3];
+    int pinA;
+    int pinB;
+    int maxBackwardPWM;
+    int maxForwardPWM;
     bool reverse;
 
    public:
-    MotorDriver(int pins[3], bool reverse) {
-        for (int i=0; i<3; i++) {
-            pinMode(pins[i], OUTPUT);
-            this->pins[i] = pins[i];
-        }
-        analogWrite(this->pins[0], 0);
+    MotorDriver(int pinA, int pinB, int maxBackwardPWM, int maxForwardPWM, bool reverse) {
+        pinMode(pinA, OUTPUT);
+        pinMode(pinB, OUTPUT);
+        digitalWrite(pinA, LOW);
+        digitalWrite(pinB, LOW);
+        this->pinA = pinA;
+        this->pinB = pinB;
+        this->maxBackwardPWM = maxBackwardPWM;
+        this->maxForwardPWM = maxForwardPWM;
         this->reverse = reverse;
-        if (this->reverse) {
-            digitalWrite(pins[1], LOW);
-            digitalWrite(pins[2], HIGH);
-        } else {
-            digitalWrite(pins[1], HIGH);
-            digitalWrite(pins[2], LOW);
-        }
     }
 
-    void setSpeed(int speed) {
-        speed = clamp(speed, -255, 255);
-        analogWrite(pins[0], abs(speed));
-        if (speed >= 0 ^ reverse) {
-            digitalWrite(pins[1], HIGH);
-            digitalWrite(pins[2], LOW);
+    void setSpeed(float speed) {
+        speed = constrain(speed, -1.f, 1.f);
+        if ((speed >= 0.f) ^ reverse) {
+            analogWrite(pinA, static_cast<int>(abs(speed) * this->maxForwardPWM));
+            digitalWrite(pinB, LOW);
         } else {
-            digitalWrite(pins[1], LOW);
-            digitalWrite(pins[2], HIGH);
+            digitalWrite(pinA, LOW);
+            analogWrite(pinB, static_cast<int>(abs(speed) * this->maxBackwardPWM));
         }
     }
 };
+
+#endif  // MOTORDRIVER_HPP
