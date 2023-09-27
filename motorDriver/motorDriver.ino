@@ -18,12 +18,9 @@ void setup() {
     // // Pins D3 and D11 - 31.4 kHz
     // TCCR2B = 0b00000001; // x1
     // TCCR2A = 0b00000001; // phase correct
+    leftMotor.setSpeed(0.5f);
+    rightMotor.setSpeed(0.5f);
 }
 
 void loop() {
-    leftMotor.setSpeed(0.5f);
-    rightMotor.setSpeed(0.5f);
-    delay(1500);
-    rightMotor.setSpeed(-0.5f);
-    delay(364);
 }

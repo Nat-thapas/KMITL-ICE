@@ -14,21 +14,25 @@ class MotorDriver {
         pinMode(pinB, OUTPUT);
         digitalWrite(pinA, LOW);
         digitalWrite(pinB, LOW);
-        this->pinA = pinA;
-        this->pinB = pinB;
+        if (reverse) {
+            this->pinA = pinB;
+            this->pinB = pinA;
+        } else {
+            this->pinA = pinA;
+            this->pinB = pinB;
+        }
         this->maxBackwardPWM = maxBackwardPWM;
         this->maxForwardPWM = maxForwardPWM;
-        this->reverse = reverse;
     }
 
     void setSpeed(float speed) {
         speed = constrain(speed, -1.f, 1.f);
-        if ((speed >= 0.f) ^ reverse) {
-            analogWrite(pinA, static_cast<int>(abs(speed) * this->maxForwardPWM));
+        if (speed >= 0.f) {
+            analogWrite(pinA, static_cast<int>(speed * this->maxForwardPWM));
             digitalWrite(pinB, LOW);
         } else {
             digitalWrite(pinA, LOW);
-            analogWrite(pinB, static_cast<int>(abs(speed) * this->maxBackwardPWM));
+            analogWrite(pinB, static_cast<int>(-speed * this->maxBackwardPWM));
         }
     }
 };
