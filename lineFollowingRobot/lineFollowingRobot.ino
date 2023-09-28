@@ -26,7 +26,14 @@ void setup() {
     Serial.begin(115200);
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, HIGH);
-    sensors.calibrate(500);
+    Serial.println("Starting calibration sequence...")
+    while (!sensors.calibrate(5000)) {
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(500);
+        digitalWrite(LED_BUILTIN, HIGH);
+        Serial.println("Calibration sequence failed, retrying...");
+    }
+    Serial.println("Calibration sequence succeeded");
     digitalWrite(LED_BUILTIN, LOW);
 }
 

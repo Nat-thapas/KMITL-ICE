@@ -24,9 +24,9 @@ class SensorReader {
         }
     }
 
-    void calibrate(int round, int delayTime = 5) {
-        for (int i=0; i<round; i++) {
-            for (int j=0; j<4; j++) {
+    bool calibrate(int round) {
+        for (int r=0; r<round; r++) {
+            for (int i=0; i<4; i++) {
                 int sensorVal = analogRead(this->sensorPins[i]);
                 if (sensorVal < this->sensorMinVals[i]) {
                     this->sensorMinVals[i] = sensorVal;
@@ -35,8 +35,13 @@ class SensorReader {
                     this->sensorMaxVals[i] = sensorVal;
                 }
             }
-            delay(delayTime);
         }
+        for (int i=0; i<4; i++) {
+            if (this->sensorMinVals[i] >= this->sensorMaxVals[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     float getLinePosition() {
