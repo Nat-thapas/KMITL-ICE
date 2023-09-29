@@ -18,7 +18,7 @@ SensorReader sensors(sensorPins);
 
 float lastError = 0.f;
 float totalError = 0.f;
-float lastExecTime;
+unsigned long lastExecTime;
 
 void setup() {
     // https://nerdytechy.com/how-to-change-the-pwm-frequency-of-arduino/
@@ -50,25 +50,37 @@ void setup() {
 }
 
 void loop() {
-    float deltaTime = millis() - lastExecTime;
+    float deltaTime = static_cast<float>(millis() - lastExecTime);
     lastExecTime = millis();
 
+    float error;
     int sensorStatus = sensors.getDetectionStatus();
-    if (sensorStatus == NO_LINE_DETECTED) return;
-    if (sensorStatus == LINES_DETECTED) digitalWrite(LED_BUILTIN, HIGH);
-    else digitalWrite(LED_BUILTIN, LOW);
-    if (sensorStatus == CROSSING_DETECTED) {
-        leftMotor.setSpeed(-baseMotorSpeed);
-        rightMotor.setSpeed(-baseMotorSpeed);
-        delay(250);
-        rightMotor.setSpeed(0.f);
-        leftMotor.setSpeed(0.f);
+    switch (sensorStatus) {
+        case NO_LINE_DETECTED:
+            if (lastError <= 0.2f && lastError >= -0.2f) {
+                error = 0.f;
+            } else {
+                error = lastError;
+            }
+            break;
+        case LINES_DETECTED:
+            digitalWrite(LED_BUILTIN, HIGH);
+            break;
+        case CROSSING_DETECTED:
+            leftMotor.setSpeed(-baseMotorSpeed);
+            rightMotor.setSpeed(-baseMotorSpeed);
+            delay(250);
+            rightMotor.setSpeed(0.f);
+            leftMotor.setSpeed(0.f);
+            break;
+        default:
+            error = sensors.getLinePosition() - 1.5f;
+            break;
     }
 
     // PID calculations
-    float linePosition = sensors.getLinePosition();
-    Serial.println(linePosition);
-    float error = linePosition - 1.5f;
+    Serial.print("Error: ");
+    Serial.println(error);
     totalError += error * deltaTime;;
     float dError = (error - lastError) / deltaTime;
     float Pval = Kp * error;
@@ -76,12 +88,20 @@ void loop() {
     float Dval = Kd * dError;
     float PIDval = (Pval + Ival + Dval) / PID_DIVIDER;
     lastError = error;
+    Serial.print("P: ");
+    Serial.print(Pval);
+    Serial.print(" I: ");
+    Serial.print(Ival);
+    Serial.print(" D: ");
+    Serial.println(Dval);
+    Serial.print("PID: ");
+    Serial.println(PIDval);
     
     float leftMotorSpeed = baseMotorSpeed;
     float rightMotorSpeed = baseMotorSpeed;
 
     if (PIDval < 0) {
-        leftMotorSpeed -= PIDval;
+        leftMotorSpeed += PIDval;
         leftMotorSpeed = constrain(leftMotorSpeed, -baseMotorSpeed, baseMotorSpeed);
     } else {
         rightMotorSpeed -= PIDval;
