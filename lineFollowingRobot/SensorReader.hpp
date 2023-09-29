@@ -23,7 +23,7 @@ class SensorReader {
     }
 
     bool getDigitalSensorValue(int sensorIdx) {
-        return this->getRawSensorValue(sensorIdx) > this-sensorThresholds[sensorIdx];
+        return this->getRawSensorValue(sensorIdx) > this->sensorThresholds[sensorIdx];
     }
 
    public: 
