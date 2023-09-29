@@ -1,17 +1,29 @@
 #ifndef SENSORREADER_HPP
 #define SENSORREADER_HPP
 
+#define NO_LINE_DETECTED     0
+#define LINE_DETECTED        1
+#define LINES_DETECTED       2
+#define SHARP_LEFT_DETECTED  3
+#define SHARP_RIGHT_DETECTED 4
+#define CROSSING_DETECTED    5
+
 class SensorReader {
     int sensorPins[4];
     int sensorMinVals[4];
     int sensorMaxVals[4];
+    int sensorThresholds[4];
 
     int getRawSensorValue(int sensorIdx) {
         return analogRead(this->sensorPins[sensorIdx]);
     }
 
     float getCalibratedSensorValue(int sensorIdx) {
-        return static_cast<float>(analogRead(this->sensorPins[sensorIdx]) - this->sensorMinVals[sensorIdx]) / static_cast<float>(this->sensorMaxVals[sensorIdx] - this->sensorMinVals[sensorIdx]);
+        return static_cast<float>(this->getRawSensorValue(sensorIdx) - this->sensorMinVals[sensorIdx]) / static_cast<float>(this->sensorMaxVals[sensorIdx] - this->sensorMinVals[sensorIdx]);
+    }
+
+    bool getDigitalSensorValue(int sensorIdx) {
+        return this->getRawSensorValue(sensorIdx) > this-sensorThresholds[sensorIdx];
     }
 
    public: 
@@ -40,8 +52,43 @@ class SensorReader {
             if (this->sensorMinVals[i] >= this->sensorMaxVals[i]) {
                 return false;
             }
+            this->sensorThresholds[i] = (this->sensorMinVals[i] + this->sensorMaxVals[i]) / 2;
         }
         return true;
+    }
+
+    int getDetectionStatus() {
+        int sensorsValue = (this->getDigitalSensorValue(0) << 3) | (this->getDigitalSensorValue(1) << 2) | (this->getDigitalSensorValue(2) << 1) | (this->getDigitalSensorValue(3));
+        switch (sensorsValue) {
+            case 0b0000:
+                return NO_LINE_DETECTED;
+                break;
+            case 0b1000:
+            case 0b1100:
+            case 0b0110:
+            case 0b0011:
+            case 0b0001:
+            case 0b0100:
+            case 0b0010:
+                return LINE_DETECTED;
+                break;
+            case 0b1001:
+            case 0b1101:
+            case 0b1011:
+            case 0b1010:
+            case 0b0101:
+                return LINES_DETECTED;
+                break;
+            case 0b1110:
+                return SHARP_LEFT_DETECTED;
+                break;
+            case 0b0111:
+                return SHARP_RIGHT_DETECTED;
+                break;
+            case 0b1111:
+                return CROSSING_DETECTED;
+                break;
+        }
     }
 
     float getLinePosition() {
@@ -49,12 +96,9 @@ class SensorReader {
         float weightedSum = 0.f;
         for (int i=0; i<4; i++) {
             float sensorVal = this->getCalibratedSensorValue(i);
-            Serial.print(sensorVal);
-            Serial.print(" ");
             normalSum += sensorVal;
             weightedSum += static_cast<float>(i) * sensorVal;
         }
-        Serial.println("");
         return weightedSum / normalSum;
     }
 };
