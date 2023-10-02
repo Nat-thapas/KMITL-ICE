@@ -2,12 +2,12 @@
 #include "SensorReader.hpp"
 
 // Base robot speed, the robot will (probably) not go faster than this
-#define baseMotorSpeed 0.4f
+#define baseMotorSpeed 0.5f
 
-// Parameters for the PID controller
+// Parameters for the PID controller  15 0 0.35: a little oscilation
 #define Kp 10.f
-#define Ki 0.f
-#define Kd 2.5f
+#define Ki 7.5f
+#define Kd 0.35f
 #define PID_DIVIDER 10.f
 
 MotorDriver leftMotor(9, 10, 255, 255, true);
@@ -50,37 +50,36 @@ void setup() {
 }
 
 void loop() {
-    float deltaTime = static_cast<float>(millis() - lastExecTime);
+    float deltaTime = static_cast<float>(millis() - lastExecTime) / 1000.f;
     lastExecTime = millis();
 
     float error;
     int sensorStatus = sensors.getDetectionStatus();
     switch (sensorStatus) {
         case NO_LINE_DETECTED:
-            if (lastError <= 0.2f && lastError >= -0.2f) {
-                error = 0.f;
-            } else {
-                error = lastError;
-            }
+            leftMotor.setSpeed(baseMotorSpeed);
+            rightMotor.setSpeed(baseMotorSpeed);
+            return;
             break;
         case LINES_DETECTED:
             digitalWrite(LED_BUILTIN, HIGH);
-            break;
-        case CROSSING_DETECTED:
-            leftMotor.setSpeed(-baseMotorSpeed);
-            rightMotor.setSpeed(-baseMotorSpeed);
-            delay(250);
-            rightMotor.setSpeed(0.f);
-            leftMotor.setSpeed(0.f);
+            return;
             break;
         default:
             error = sensors.getLinePosition() - 1.5f;
             break;
     }
 
+    if (sensorStatus == SHARP_LEFT_DETECTED) {
+        error -= 5.f;
+    }
+    if (sensorStatus == SHARP_RIGHT_DETECTED) {
+        error += 5.f;
+    }
+
     // PID calculations
-    Serial.print("Error: ");
-    Serial.println(error);
+    // Serial.print("Error: ");
+    // Serial.print(error);
     totalError += error * deltaTime;;
     float dError = (error - lastError) / deltaTime;
     float Pval = Kp * error;
@@ -88,14 +87,14 @@ void loop() {
     float Dval = Kd * dError;
     float PIDval = (Pval + Ival + Dval) / PID_DIVIDER;
     lastError = error;
-    Serial.print("P: ");
-    Serial.print(Pval);
-    Serial.print(" I: ");
-    Serial.print(Ival);
-    Serial.print(" D: ");
-    Serial.println(Dval);
-    Serial.print("PID: ");
-    Serial.println(PIDval);
+    // Serial.print("   P: ");
+    // Serial.print(Pval);
+    // Serial.print(" I: ");
+    // Serial.print(Ival);
+    // Serial.print(" D: ");
+    // Serial.print(Dval);
+    // Serial.print("   PID: ");
+    // Serial.println(PIDval);
     
     float leftMotorSpeed = baseMotorSpeed;
     float rightMotorSpeed = baseMotorSpeed;

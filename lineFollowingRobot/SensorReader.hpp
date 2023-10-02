@@ -19,7 +19,9 @@ class SensorReader {
     }
 
     float getCalibratedSensorValue(int sensorIdx) {
-        return static_cast<float>(this->getRawSensorValue(sensorIdx) - this->sensorMinVals[sensorIdx]) / static_cast<float>(this->sensorMaxVals[sensorIdx] - this->sensorMinVals[sensorIdx]);
+        float val = static_cast<float>(this->getRawSensorValue(sensorIdx) - this->sensorMinVals[sensorIdx]) / static_cast<float>(this->sensorMaxVals[sensorIdx] - this->sensorMinVals[sensorIdx]);
+        val = constrain(val, 0.f, 1.f);
+        return val;
     }
 
     bool getDigitalSensorValue(int sensorIdx) {
@@ -64,12 +66,10 @@ class SensorReader {
                 return NO_LINE_DETECTED;
                 break;
             case 0b1000:
-            case 0b1100:
-            case 0b0110:
-            case 0b0011:
-            case 0b0001:
             case 0b0100:
             case 0b0010:
+            case 0b0001:
+            case 0b0110:
                 return LINE_DETECTED;
                 break;
             case 0b1001:
@@ -80,9 +80,11 @@ class SensorReader {
                 return LINES_DETECTED;
                 break;
             case 0b1110:
+            case 0b1100:
                 return SHARP_LEFT_DETECTED;
                 break;
             case 0b0111:
+            case 0b0011:
                 return SHARP_RIGHT_DETECTED;
                 break;
             case 0b1111:
@@ -96,8 +98,13 @@ class SensorReader {
         float weightedSum = 0.f;
         for (int i=0; i<4; i++) {
             float sensorVal = this->getCalibratedSensorValue(i);
-            normalSum += sensorVal;
-            weightedSum += static_cast<float>(i) * sensorVal;
+            if (sensorVal >= 0.1f) {
+                normalSum += sensorVal;
+                weightedSum += static_cast<float>(i) * sensorVal;
+            }
+        }
+        if (normalSum <= 0.f) {
+            return 1.5f;
         }
         return weightedSum / normalSum;
     }
