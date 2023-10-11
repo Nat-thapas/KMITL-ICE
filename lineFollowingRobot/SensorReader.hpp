@@ -49,7 +49,7 @@ class SensorReader {
         for (int i = 0; i < 4; i++) {
             this->sensorMinVals[i] = 300;
             this->sensorMaxVals[i] = 900;
-            this->sensorThresholds[i] = 640;
+            this->sensorThresholds[i] = 600;
         }
         return true;
     }
@@ -63,20 +63,17 @@ class SensorReader {
         return sensorsValue;
     }
 
-    float getLinePosition() {
-        float normalSum = 0.f;
-        float weightedSum = 0.f;
-        for (int i=0; i<4; i++) {
+    int getLinePosition() {
+        int maxIdx = 0;
+        float maxVal = 0;
+        for (int i = 0; i < 4; i++) {
             float sensorVal = this->getCalibratedSensorValue(i);
-            if (sensorVal >= 0.1f) {
-                normalSum += sensorVal;
-                weightedSum += static_cast<float>(i) * sensorVal;
+            if (sensorVal >= maxVal) {
+                maxVal = sensorVal;
+                maxIdx = i;
             }
         }
-        if (normalSum <= 0.f) {
-            return 1.5f;
-        }
-        return weightedSum / normalSum;
+        return maxIdx;
     }
 };
 

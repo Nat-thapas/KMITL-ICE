@@ -6,21 +6,11 @@
 // Base robot speed, the robot will (probably) not go faster than this
 #define baseMotorSpeed 0.6f
 
-// Parameters for the PID controller  15 0 0.35: a little oscilation
-#define Kp 25.f
-#define Ki 0.f
-#define Kd 0.5f
-#define PID_DIVIDER 10.f
-
 MotorDriver leftMotor(9, 10, 255, 255, true);
 MotorDriver rightMotor(3, 11, 255, 255, true);
 
 const int sensorPins[4] = {A0, A1, A2, A3};
 SensorReader sensors(sensorPins);
-
-float lastError = 0.f;
-float totalError = 0.f;
-unsigned long lastExecTime;
 
 int ldrBaseVal = 0;
 
@@ -54,22 +44,21 @@ void setup() {
     }
     Serial.println("Calibration sequence succeeded");
     digitalWrite(LED_BUILTIN, LOW);
-    lastExecTime = millis();
 }
 
 bool turnedAtCrossing = false;
 bool turnedRightAtCrossing = false;
 
-void loop() {
-    float deltaTime = static_cast<float>(millis() - lastExecTime) / 1000.f;
-    lastExecTime = millis();
+int sameErrCount = 0;
+bool lastErrorIsRight = true;
 
-    float error = sensors.getLinePosition() - 1.5f;
+void loop() {
+    int linePos = sensors.getLinePosition();
     int sensorStatus = sensors.getDetectionStatus();
 
     switch (sensorStatus) {
         case 0b0000:
-            error = 0.f;
+            linePos = -1;
             break;
         case 0b0001:
         case 0b0011:
@@ -156,35 +145,30 @@ void loop() {
         default:
             break;
     }
-
-    // PID calculations
-    // Serial.print("Error: ");
-    // Serial.print(error);
-    totalError += error * deltaTime;;
-    float dError = (error - lastError) / deltaTime;
-    float Pval = Kp * error;
-    float Ival = Ki * totalError;
-    float Dval = Kd * dError;
-    float PIDval = (Pval + Ival + Dval) / PID_DIVIDER;
-    lastError = error;
-    // Serial.print("   P: ");
-    // Serial.print(Pval);
-    // Serial.print(" I: ");
-    // Serial.print(Ival);
-    // Serial.print(" D: ");
-    // Serial.print(Dval);
-    // Serial.print("   PID: ");
-    // Serial.println(PIDval);
     
     float leftMotorSpeed = baseMotorSpeed;
     float rightMotorSpeed = baseMotorSpeed;
 
-    if (PIDval < 0) {
-        leftMotorSpeed += PIDval;
-        leftMotorSpeed = constrain(leftMotorSpeed, -baseMotorSpeed, baseMotorSpeed);
-    } else {
-        rightMotorSpeed -= PIDval;
-        rightMotorSpeed = constrain(rightMotorSpeed, -baseMotorSpeed, baseMotorSpeed);
+    if (linePos != -1) {
+        if (linePos < 2) {
+            leftMotorSpeed -= (baseMotorSpeed / 3.f) * static_cast<float>(1 + (!lastErrorIsRight && sameErrCount > 10) * 2);
+            if (!lastErrorIsRight) {
+                sameErrCount++;
+            } else {
+                sameErrCount = 0;
+            }
+            leftMotorSpeed = constrain(leftMotorSpeed, -baseMotorSpeed, baseMotorSpeed);
+            lastErrorIsRight = false;
+        } else {
+            rightMotorSpeed -= (baseMotorSpeed / 3.f) * static_cast<float>(1 + (lastErrorIsRight && sameErrCount > 10) * 2);
+            if (lastErrorIsRight) {
+                sameErrCount++;
+            } else {
+                sameErrCount = 0;
+            }
+            rightMotorSpeed = constrain(rightMotorSpeed, -baseMotorSpeed, baseMotorSpeed);
+            lastErrorIsRight = true;
+        }
     }
 
     leftMotor.setSpeed(leftMotorSpeed);
