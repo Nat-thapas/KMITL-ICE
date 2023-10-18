@@ -46,15 +46,56 @@ void setup() {
     digitalWrite(LED_BUILTIN, LOW);
 }
 
-bool turnedAtCrossing = false;
-bool turnedRightAtCrossing = false;
-
 int sameErrCount = 0;
 bool lastErrorIsRight = true;
+
+void handleCrossing() {
+    leftMotor.setSpeed(0.f);
+    rightMotor.setSpeed(0.f);
+    delay(500);
+    int blinks = 0;
+    unsigned long startTime = millis();
+    bool lastLdrVal = analogRead(LDR_PIN) < 250;
+    while (millis() - startTime < 5000) {
+        bool ldrVal = analogRead(LDR_PIN) < 250;
+        // Serial.println(analogRead(LDR_PIN));
+        // digitalWrite(LED_BUILTIN, ldrVal);
+        if (ldrVal > lastLdrVal) {
+            blinks++;
+        }
+        lastLdrVal = ldrVal;
+    }
+    if (blinks <= 1) {
+        leftMotor.setSpeed(baseMotorSpeed * 0.8f);
+        rightMotor.setSpeed(baseMotorSpeed * 0.8f);
+        delay(400);
+        leftMotor.setSpeed(-baseMotorSpeed * 0.75f);
+        rightMotor.setSpeed(baseMotorSpeed * 0.75f);
+        delay(100);
+        while (!sensors.getDigitalSensorValue(2)) delay(2);
+    } else {
+        leftMotor.setSpeed(baseMotorSpeed * 0.8f);
+        rightMotor.setSpeed(baseMotorSpeed * 0.8f);
+        delay(400);
+        leftMotor.setSpeed(baseMotorSpeed * 0.75f);
+        rightMotor.setSpeed(-baseMotorSpeed * 0.75f);
+        delay(100);
+        while (!sensors.getDigitalSensorValue(1)) delay(2);
+    }
+}
+
+int lastSensorStatus = -1;
+int sameSensorStatusCount = 0;
 
 void loop() {
     int linePos = sensors.getLinePosition();
     int sensorStatus = sensors.getDetectionStatus();
+
+    if (sensorStatus == lastSensorStatus) {
+        sameSensorStatusCount++;
+    } else {
+        sameSensorStatusCount = 0;
+    }
 
     switch (sensorStatus) {
         case 0b0000:
@@ -62,6 +103,9 @@ void loop() {
             break;
         case 0b0001:
         case 0b0011:
+            if (sameSensorStatusCount < 7) {
+                break;
+            }
             leftMotor.setSpeed(baseMotorSpeed * 0.8f);
             rightMotor.setSpeed(baseMotorSpeed * 0.8f);
             delay(500);
@@ -73,6 +117,9 @@ void loop() {
             break;
         case 0b1000:
         case 0b1100:
+            if (sameSensorStatusCount < 7) {
+                break;
+            }
             leftMotor.setSpeed(baseMotorSpeed * 0.8f);
             rightMotor.setSpeed(baseMotorSpeed * 0.8f);
             delay(500);
@@ -83,71 +130,17 @@ void loop() {
             return;
             break;
         case 0b1111:
-            if (turnedAtCrossing) {
-                if (turnedRightAtCrossing) {
-                    leftMotor.setSpeed(baseMotorSpeed * 0.8f);
-                    rightMotor.setSpeed(baseMotorSpeed * 0.8f);
-                    delay(200);
-                    leftMotor.setSpeed(baseMotorSpeed * 0.75f);
-                    rightMotor.setSpeed(-baseMotorSpeed * 0.75f);
-                    delay(500);
-                    while (!sensors.getDigitalSensorValue(1)) delay(2);
-                    return;
-                } else {
-                    leftMotor.setSpeed(baseMotorSpeed * 0.8f);
-                    rightMotor.setSpeed(baseMotorSpeed * 0.8f);
-                    delay(200);
-                    leftMotor.setSpeed(-baseMotorSpeed * 0.75f);
-                    rightMotor.setSpeed(baseMotorSpeed * 0.75f);
-                    delay(500);
-                    while (!sensors.getDigitalSensorValue(2)) delay(2);
-                    return;
-                }
-            }
-            leftMotor.setSpeed(0.f);
-            rightMotor.setSpeed(0.f);
-            turnedAtCrossing = true;
-            delay(500);
-            int blinks = 0;
-            unsigned long startTime = millis();
-            bool lastLdrVal = analogRead(LDR_PIN) < 250;
-            while (millis() - startTime < 5000) {
-                bool ldrVal = analogRead(LDR_PIN) < 250;
-                // Serial.println(analogRead(LDR_PIN));
-                // digitalWrite(LED_BUILTIN, ldrVal);
-                if (ldrVal > lastLdrVal) {
-                    blinks++;
-                }
-                lastLdrVal = ldrVal;
-            }
-            if (blinks <= 1) {
-                leftMotor.setSpeed(baseMotorSpeed * 0.8f);
-                rightMotor.setSpeed(baseMotorSpeed * 0.8f);
-                delay(400);
-                leftMotor.setSpeed(-baseMotorSpeed * 0.75f);
-                rightMotor.setSpeed(baseMotorSpeed * 0.75f);
-                delay(100);
-                while (!sensors.getDigitalSensorValue(2)) delay(2);
-                turnedRightAtCrossing = false;
-                return;
-            } else {
-                leftMotor.setSpeed(baseMotorSpeed * 0.8f);
-                rightMotor.setSpeed(baseMotorSpeed * 0.8f);
-                delay(400);
-                leftMotor.setSpeed(baseMotorSpeed * 0.75f);
-                rightMotor.setSpeed(-baseMotorSpeed * 0.75f);
-                delay(100);
-                while (!sensors.getDigitalSensorValue(1)) delay(2);
-                turnedRightAtCrossing = true;
-                return;
-            }
+            handleCrossing();
+            return;
             break;
         default:
             break;
     }
+
+    lastSensorStatus = sensorStatus;
     
-    float leftMotorSpeed = baseMotorSpeed * 0.8f;
-    float rightMotorSpeed = baseMotorSpeed * 0.8f;
+    float leftMotorSpeed = baseMotorSpeed * 0.75f;
+    float rightMotorSpeed = baseMotorSpeed * 0.75f;
 
     if (linePos != -1) {
         if (linePos < 2) {
@@ -156,7 +149,8 @@ void loop() {
             } else {
                 sameErrCount = 0;
             }
-            leftMotorSpeed -= (baseMotorSpeed / 2.f) * (1.25f + static_cast<float>(sameErrCount) / 100.f);
+            // leftMotorSpeed -= (baseMotorSpeed / 2.f) * (1.25f + static_cast<float>(sameErrCount) / 100.f);
+            leftMotorSpeed -= (baseMotorSpeed / 2.f) * (sameErrCount > 50 ? 1.5f : 0.75f);
             leftMotorSpeed = constrain(leftMotorSpeed, -baseMotorSpeed, baseMotorSpeed);
             lastErrorIsRight = false;
         } else {
@@ -165,7 +159,8 @@ void loop() {
             } else {
                 sameErrCount = 0;
             }
-            rightMotorSpeed -= (baseMotorSpeed / 2.f) * (1.25f + static_cast<float>(sameErrCount) / 100.f);
+            // rightMotorSpeed -= (baseMotorSpeed / 2.f) * (1.25f + static_cast<float>(sameErrCount) / 100.f);
+            rightMotorSpeed -= (baseMotorSpeed / 2.f) * (sameErrCount > 50 ? 1.5f : 0.75f);
             rightMotorSpeed = constrain(rightMotorSpeed, -baseMotorSpeed, baseMotorSpeed);
             lastErrorIsRight = true;
         }
@@ -175,6 +170,4 @@ void loop() {
     rightMotor.setSpeed(rightMotorSpeed);
 
     ldrBaseVal = (ldrBaseVal + analogRead(LDR_PIN)) / 2; 
-
-    delay(1);
 }
