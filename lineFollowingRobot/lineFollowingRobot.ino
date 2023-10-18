@@ -146,26 +146,26 @@ void loop() {
             break;
     }
     
-    float leftMotorSpeed = baseMotorSpeed;
-    float rightMotorSpeed = baseMotorSpeed;
+    float leftMotorSpeed = baseMotorSpeed * 0.8f;
+    float rightMotorSpeed = baseMotorSpeed * 0.8f;
 
     if (linePos != -1) {
         if (linePos < 2) {
-            leftMotorSpeed -= (baseMotorSpeed / 3.f) * static_cast<float>(1 + (!lastErrorIsRight && sameErrCount > 10) * 2);
             if (!lastErrorIsRight) {
                 sameErrCount++;
             } else {
                 sameErrCount = 0;
             }
+            leftMotorSpeed -= (baseMotorSpeed / 2.f) * (1.25f + static_cast<float>(sameErrCount) / 100.f);
             leftMotorSpeed = constrain(leftMotorSpeed, -baseMotorSpeed, baseMotorSpeed);
             lastErrorIsRight = false;
         } else {
-            rightMotorSpeed -= (baseMotorSpeed / 3.f) * static_cast<float>(1 + (lastErrorIsRight && sameErrCount > 10) * 2);
             if (lastErrorIsRight) {
                 sameErrCount++;
             } else {
                 sameErrCount = 0;
             }
+            rightMotorSpeed -= (baseMotorSpeed / 2.f) * (1.25f + static_cast<float>(sameErrCount) / 100.f);
             rightMotorSpeed = constrain(rightMotorSpeed, -baseMotorSpeed, baseMotorSpeed);
             lastErrorIsRight = true;
         }
@@ -176,5 +176,5 @@ void loop() {
 
     ldrBaseVal = (ldrBaseVal + analogRead(LDR_PIN)) / 2; 
 
-    delay(2);
+    delay(1);
 }
