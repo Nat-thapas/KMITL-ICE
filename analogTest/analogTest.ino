@@ -24,7 +24,7 @@ void loop() {
     Serial.print(a);
     Serial.print(" ");
     Serial.println(b);
-    delay(100);
+    delay(10);
     // Serial.print(analogRead(A4));
     // Serial.print("  ");
     // Serial.println(digitalRead(7));

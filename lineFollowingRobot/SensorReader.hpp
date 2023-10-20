@@ -46,12 +46,24 @@ class SensorReader {
         //     this->sensorThresholds[i] = (this->sensorMinVals[i] + this->sensorMaxVals[i]) / 2;
         // }
         // return true;
+        this->sensorMinVals[0] = 350;
+        this->sensorMinVals[1] = 425;
+        this->sensorMinVals[2] = 350;
+        this->sensorMinVals[3] = 450;
+        this->sensorMaxVals[0] = 850;
+        this->sensorMaxVals[1] = 875;
+        this->sensorMaxVals[2] = 875;
+        this->sensorMaxVals[3] = 875;
         for (int i = 0; i < 4; i++) {
-            this->sensorMinVals[i] = 300;
-            this->sensorMaxVals[i] = 900;
-            this->sensorThresholds[i] = 600;
+            this->sensorThresholds[i] = (this->sensorMinVals[i] + this->sensorMaxVals[i]) / 2;
         }
         return true;
+        // for (int i = 0; i < 4; i++) {
+        //     this->sensorMinVals[i] = 300;
+        //     this->sensorMaxVals[i] = 900;
+        //     this->sensorThresholds[i] = 600;
+        // }
+        // return true;
     }
 
     bool getDigitalSensorValue(int sensorIdx) {

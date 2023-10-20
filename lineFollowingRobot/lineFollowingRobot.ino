@@ -103,7 +103,7 @@ void loop() {
             break;
         case 0b0001:
         case 0b0011:
-            if (sameSensorStatusCount < 7) {
+            if (sameSensorStatusCount < 20) {
                 break;
             }
             leftMotor.setSpeed(baseMotorSpeed * 0.8f);
@@ -112,12 +112,12 @@ void loop() {
             leftMotor.setSpeed(baseMotorSpeed * 0.75f);
             rightMotor.setSpeed(-baseMotorSpeed * 0.75f);
             delay(100);
-            while (!sensors.getDigitalSensorValue(1)) delay(2);
+            while (!sensors.getDigitalSensorValue(2)) delay(1);
             return;
             break;
         case 0b1000:
         case 0b1100:
-            if (sameSensorStatusCount < 7) {
+            if (sameSensorStatusCount < 20) {
                 break;
             }
             leftMotor.setSpeed(baseMotorSpeed * 0.8f);
@@ -126,7 +126,7 @@ void loop() {
             leftMotor.setSpeed(-baseMotorSpeed * 0.75f);
             rightMotor.setSpeed(baseMotorSpeed * 0.75f);
             delay(100);
-            while (!sensors.getDigitalSensorValue(2)) delay(2);
+            while (!sensors.getDigitalSensorValue(1)) delay(1);
             return;
             break;
         case 0b1111:
