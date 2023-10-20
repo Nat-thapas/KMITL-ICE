@@ -1,6 +1,12 @@
 #include "MotorDriver.hpp"
 #include "SensorReader.hpp"
 
+#define LEFT 0
+#define RIGHT 1
+
+#define INTEGRAL_LIMIT 100
+#define DENOISE_LIMIT 100
+
 #define LDR_PIN A4
 
 // Base robot speed, the robot will (probably) not go faster than this
@@ -49,7 +55,13 @@ void setup() {
 int sameErrCount = 0;
 bool lastErrorIsRight = true;
 
+int crossedCount = 0;
+int lastTurnAtCrossing = -1;
+int turnAfterCrossingCount = 0;
+
 void handleCrossing() {
+    turnAfterCrossingCount = 0;
+    crossedCount++;
     leftMotor.setSpeed(0.f);
     rightMotor.setSpeed(0.f);
     delay(500);
@@ -66,78 +78,87 @@ void handleCrossing() {
         lastLdrVal = ldrVal;
     }
     if (blinks <= 1) {
+        lastTurnAtCrossing = LEFT;
         leftMotor.setSpeed(baseMotorSpeed * 0.8f);
         rightMotor.setSpeed(baseMotorSpeed * 0.8f);
         delay(400);
         leftMotor.setSpeed(-baseMotorSpeed * 0.75f);
         rightMotor.setSpeed(baseMotorSpeed * 0.75f);
         delay(100);
-        while (!sensors.getDigitalSensorValue(2)) delay(2);
+        while (!sensors.getDigitalSensorValue(1));
     } else {
+        lastTurnAtCrossing = RIGHT;
         leftMotor.setSpeed(baseMotorSpeed * 0.8f);
         rightMotor.setSpeed(baseMotorSpeed * 0.8f);
         delay(400);
         leftMotor.setSpeed(baseMotorSpeed * 0.75f);
         rightMotor.setSpeed(-baseMotorSpeed * 0.75f);
         delay(100);
-        while (!sensors.getDigitalSensorValue(1)) delay(2);
+        while (!sensors.getDigitalSensorValue(2));
     }
 }
 
-int lastSensorStatus = -1;
-int sameSensorStatusCount = 0;
+int lastTurnDetected = -1;
+int sameTurnCount = 0;
+
+bool finishedAllCrossings = false;
 
 void loop() {
     int linePos = sensors.getLinePosition();
     int sensorStatus = sensors.getDetectionStatus();
 
-    if (sensorStatus == lastSensorStatus) {
-        sameSensorStatusCount++;
+    int turnDetected = -1;
+    if (sensorStatus & 0b0001) {
+        turnDetected = RIGHT;
+    } else if (sensorStatus & 0b1000) {
+        turnDetected = LEFT;
+    }
+
+    if (turnDetected == lastTurnDetected) {
+        sameTurnCount++;
     } else {
-        sameSensorStatusCount = 0;
+        sameTurnCount = 0;
     }
 
-    switch (sensorStatus) {
-        case 0b0000:
-            linePos = -1;
-            break;
-        case 0b0001:
-        case 0b0011:
-            if (sameSensorStatusCount < 20) {
-                break;
-            }
-            leftMotor.setSpeed(baseMotorSpeed * 0.8f);
-            rightMotor.setSpeed(baseMotorSpeed * 0.8f);
-            delay(500);
-            leftMotor.setSpeed(baseMotorSpeed * 0.75f);
-            rightMotor.setSpeed(-baseMotorSpeed * 0.75f);
-            delay(100);
-            while (!sensors.getDigitalSensorValue(2)) delay(1);
-            return;
-            break;
-        case 0b1000:
-        case 0b1100:
-            if (sameSensorStatusCount < 20) {
-                break;
-            }
-            leftMotor.setSpeed(baseMotorSpeed * 0.8f);
-            rightMotor.setSpeed(baseMotorSpeed * 0.8f);
-            delay(500);
-            leftMotor.setSpeed(-baseMotorSpeed * 0.75f);
-            rightMotor.setSpeed(baseMotorSpeed * 0.75f);
-            delay(100);
-            while (!sensors.getDigitalSensorValue(1)) delay(1);
-            return;
-            break;
-        case 0b1111:
+    if (!finishedAllCrossings) {
+        if ((lastTurnAtCrossing == RIGHT && turnDetected == LEFT || lastTurnAtCrossing == LEFT && turnDetected == RIGHT) && turnAfterCrossingCount == 1 && sameTurnCount >= DENOISE_LIMIT) {
             handleCrossing();
-            return;
-            break;
-        default:
-            break;
+            finishedAllCrossings = true;
+        }
     }
 
-    lastSensorStatus = sensorStatus;
+    if (turnDetected == LEFT && sameTurnCount > DENOISE_LIMIT) {
+        turnAfterCrossingCount++;
+        leftMotor.setSpeed(baseMotorSpeed * 0.8f);
+        rightMotor.setSpeed(baseMotorSpeed * 0.8f);
+        delay(500);
+        leftMotor.setSpeed(-baseMotorSpeed * 0.75f);
+        rightMotor.setSpeed(baseMotorSpeed * 0.75f);
+        delay(100);
+        while (!sensors.getDigitalSensorValue(1));
+        return;
+    } else if (turnDetected == RIGHT && sameTurnCount > DENOISE_LIMIT) {
+        turnAfterCrossingCount++;
+        leftMotor.setSpeed(baseMotorSpeed * 0.8f);
+        rightMotor.setSpeed(baseMotorSpeed * 0.8f);
+        delay(500);
+        leftMotor.setSpeed(baseMotorSpeed * 0.75f);
+        rightMotor.setSpeed(-baseMotorSpeed * 0.75f);
+        delay(100);
+        while (!sensors.getDigitalSensorValue(2));
+        return;
+    }
+
+    lastTurnDetected = turnDetected;
+
+    if (sensorStatus == 0) {
+        linePos = -1;
+    }
+
+    if (sensorStatus == 0b1111) {
+        handleCrossing();
+        return;
+    }
     
     float leftMotorSpeed = baseMotorSpeed * 0.75f;
     float rightMotorSpeed = baseMotorSpeed * 0.75f;
@@ -150,7 +171,7 @@ void loop() {
                 sameErrCount = 0;
             }
             // leftMotorSpeed -= (baseMotorSpeed / 2.f) * (1.25f + static_cast<float>(sameErrCount) / 100.f);
-            leftMotorSpeed -= (baseMotorSpeed / 2.f) * (sameErrCount > 50 ? 1.5f : 0.75f);
+            leftMotorSpeed -= (baseMotorSpeed / 2.f) * (sameErrCount > INTEGRAL_LIMIT ? 1.5f : 0.75f);
             leftMotorSpeed = constrain(leftMotorSpeed, -baseMotorSpeed, baseMotorSpeed);
             lastErrorIsRight = false;
         } else {
@@ -160,7 +181,7 @@ void loop() {
                 sameErrCount = 0;
             }
             // rightMotorSpeed -= (baseMotorSpeed / 2.f) * (1.25f + static_cast<float>(sameErrCount) / 100.f);
-            rightMotorSpeed -= (baseMotorSpeed / 2.f) * (sameErrCount > 50 ? 1.5f : 0.75f);
+            rightMotorSpeed -= (baseMotorSpeed / 2.f) * (sameErrCount > INTEGRAL_LIMIT ? 1.5f : 0.75f);
             rightMotorSpeed = constrain(rightMotorSpeed, -baseMotorSpeed, baseMotorSpeed);
             lastErrorIsRight = true;
         }
