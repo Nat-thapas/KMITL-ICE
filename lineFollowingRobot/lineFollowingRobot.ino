@@ -4,8 +4,9 @@
 #define LEFT 0
 #define RIGHT 1
 
-#define INTEGRAL_LIMIT 100
+#define INTEGRAL_LIMIT 50
 #define DENOISE_LIMIT 100
+#define DELAYED_TURN_TIME 500
 
 #define LDR_PIN A4
 
@@ -67,9 +68,9 @@ void handleCrossing() {
     delay(500);
     int blinks = 0;
     unsigned long startTime = millis();
-    bool lastLdrVal = analogRead(LDR_PIN) < 250;
-    while (millis() - startTime < 5000) {
-        bool ldrVal = analogRead(LDR_PIN) < 250;
+    bool lastLdrVal = analogRead(LDR_PIN) < 600;
+    while (millis() - startTime < 7500) {
+        bool ldrVal = analogRead(LDR_PIN) < 600;
         // Serial.println(analogRead(LDR_PIN));
         // digitalWrite(LED_BUILTIN, ldrVal);
         if (ldrVal > lastLdrVal) {
@@ -81,19 +82,19 @@ void handleCrossing() {
         lastTurnAtCrossing = LEFT;
         leftMotor.setSpeed(baseMotorSpeed * 0.8f);
         rightMotor.setSpeed(baseMotorSpeed * 0.8f);
-        delay(400);
+        delay(350);
         leftMotor.setSpeed(-baseMotorSpeed * 0.75f);
         rightMotor.setSpeed(baseMotorSpeed * 0.75f);
-        delay(100);
+        delay(250);
         while (!sensors.getDigitalSensorValue(1));
     } else {
         lastTurnAtCrossing = RIGHT;
         leftMotor.setSpeed(baseMotorSpeed * 0.8f);
         rightMotor.setSpeed(baseMotorSpeed * 0.8f);
-        delay(400);
+        delay(350);
         leftMotor.setSpeed(baseMotorSpeed * 0.75f);
         rightMotor.setSpeed(-baseMotorSpeed * 0.75f);
-        delay(100);
+        delay(250);
         while (!sensors.getDigitalSensorValue(2));
     }
 }
@@ -131,7 +132,7 @@ void loop() {
         turnAfterCrossingCount++;
         leftMotor.setSpeed(baseMotorSpeed * 0.8f);
         rightMotor.setSpeed(baseMotorSpeed * 0.8f);
-        delay(500);
+        delay(DELAYED_TURN_TIME);
         leftMotor.setSpeed(-baseMotorSpeed * 0.75f);
         rightMotor.setSpeed(baseMotorSpeed * 0.75f);
         delay(100);
@@ -141,7 +142,7 @@ void loop() {
         turnAfterCrossingCount++;
         leftMotor.setSpeed(baseMotorSpeed * 0.8f);
         rightMotor.setSpeed(baseMotorSpeed * 0.8f);
-        delay(500);
+        delay(DELAYED_TURN_TIME);
         leftMotor.setSpeed(baseMotorSpeed * 0.75f);
         rightMotor.setSpeed(-baseMotorSpeed * 0.75f);
         delay(100);
